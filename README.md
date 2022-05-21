@@ -1,0 +1,1 @@
+Demo of draw graphics by Rust skia lib in Android device
