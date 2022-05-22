@@ -12,7 +12,7 @@ impl Canvas {
         let mut surface = Surface::new_raster_n32_premul((width, height)).expect("no surface!");
         let path = Path::new();
         let mut paint = Paint::default();
-        paint.set_color(Color::BLACK);
+        paint.set_color(Color::RED);
         paint.set_anti_alias(true);
         paint.set_stroke_width(1.0);
         surface.canvas().clear(Color::WHITE);
