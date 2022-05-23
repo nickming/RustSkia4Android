@@ -1,14 +1,17 @@
-mod canvas;
+use std::{sync::mpsc, thread, time::Duration};
+use std::fs::File;
+use std::io::Write;
+use std::thread::Thread;
+
+use android_logger::Config;
+use jni::JNIEnv;
+use jni::objects::{JClass, JObject, JValue};
+use jni::sys::{jbyteArray, jint};
+use log::{info, Level};
 
 use canvas::Canvas;
 
-use std::fs::File;
-use std::io::Write;
-use jni::objects::{JClass, JObject};
-use jni::JNIEnv;
-use jni::sys::{jbyteArray, jint};
-
-use std::{sync::mpsc, thread, time::Duration};
+mod canvas;
 
 #[cfg(test)]
 mod tests {
@@ -37,11 +40,17 @@ pub unsafe extern fn Java_com_example_myapplication_SkiaLibrary_draw(env: JNIEnv
     env.byte_array_from_slice(bytes).unwrap()
 }
 
+#[no_mangle]
+#[allow(non_snake_case)]
+#[link(name = "log")]
 pub unsafe extern fn Java_com_example_myapplication_SkiaLibrary_drawAsync(env: JNIEnv, _: JClass, width: jint, height: jint, callback: JObject) {
     let jvm = env.get_java_vm().unwrap();
     let width = width as i32;
     let height = height as i32;
     let callback = env.new_global_ref(callback).unwrap();
+
+    android_logger::init_once(Config::default().with_min_level(Level::Debug).with_tag("skia_rust_lib"));
+    info!("draw async start");
 
     let (tx, rx) = mpsc::channel();
 
@@ -60,7 +69,14 @@ pub unsafe extern fn Java_com_example_myapplication_SkiaLibrary_drawAsync(env: J
         let data = canvas.data();
         let bytes = data.as_bytes();
         let j_bytes = env.byte_array_from_slice(bytes).unwrap();
-        env.call_method(&callback, "onSuccess", "(II)[B", &[j_bytes.into()]).unwrap();
+        match env.call_method(&callback, "onSuccess", "([B)V", &[j_bytes.into()]) {
+            Ok(_) => {
+                info!("call native method success!");
+            }
+            Err(e) => {
+                info!("call native method failed:{:?}",e);
+            }
+        }
     });
     rx.recv().unwrap()
 }
