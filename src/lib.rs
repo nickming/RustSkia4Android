@@ -1,11 +1,8 @@
-use std::{sync::mpsc, thread, time::Duration};
-use std::fs::File;
-use std::io::Write;
-use std::thread::Thread;
+use std::{sync::mpsc, thread};
 
 use android_logger::Config;
 use jni::JNIEnv;
-use jni::objects::{JClass, JObject, JValue};
+use jni::objects::{JClass, JObject};
 use jni::sys::{jbyteArray, jint};
 use log::{info, Level};
 
@@ -27,16 +24,8 @@ mod tests {
 pub unsafe extern fn Java_com_example_myapplication_SkiaLibrary_draw(env: JNIEnv, _: JClass, width: jint, height: jint) -> jbyteArray {
     let width = width as i32;
     let height = height as i32;
-    let mut canvas = Canvas::new(width, height);
-    let half_size = (width / 2) as f32;
-    canvas.move_to(1.0, 1.0);
-    canvas.line_to(1.0, half_size);
-    canvas.line_to(half_size, half_size);
-    canvas.line_to(half_size, 1.0);
-    canvas.set_line_width(2.0);
-    canvas.stroke();
-    let data = canvas.data();
-    let bytes = data.as_bytes();
+    let bytes = draw_canvas(width, height);
+    let bytes = bytes.as_slice();
     env.byte_array_from_slice(bytes).unwrap()
 }
 
@@ -58,16 +47,8 @@ pub unsafe extern fn Java_com_example_myapplication_SkiaLibrary_drawAsync(env: J
         tx.send(()).unwrap();
         let env = jvm.attach_current_thread().unwrap();
 
-        let mut canvas = Canvas::new(width, height);
-        let half_size = (width / 2) as f32;
-        canvas.move_to(1.0, 1.0);
-        canvas.line_to(1.0, half_size);
-        canvas.line_to(half_size, half_size);
-        canvas.line_to(half_size, 1.0);
-        canvas.set_line_width(2.0);
-        canvas.stroke();
-        let data = canvas.data();
-        let bytes = data.as_bytes();
+        let bytes = draw_canvas(width, height);
+        let bytes = bytes.as_slice();
         let j_bytes = env.byte_array_from_slice(bytes).unwrap();
         match env.call_method(&callback, "onSuccess", "([B)V", &[j_bytes.into()]) {
             Ok(_) => {
@@ -79,4 +60,18 @@ pub unsafe extern fn Java_com_example_myapplication_SkiaLibrary_drawAsync(env: J
         }
     });
     rx.recv().unwrap()
+}
+
+fn draw_canvas(width: i32, height: i32) -> Vec<u8> {
+    let mut canvas = Canvas::new(width, height);
+    let half_size = (width / 2) as f32;
+    canvas.move_to(1.0, 1.0);
+    canvas.line_to(1.0, half_size);
+    canvas.line_to(half_size, half_size);
+    canvas.line_to(half_size, 1.0);
+    canvas.set_line_width(2.0);
+    canvas.stroke();
+    let data = canvas.data();
+    let bytes = data.as_bytes();
+    Vec::from(bytes)
 }
